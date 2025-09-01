@@ -1,0 +1,182 @@
+#include "rknnyolo.hpp"
+#include "postprocess.h"
+
+RknnYoloNode* RknnYoloNode::instance_ = nullptr;
+
+RknnYoloNode::RknnYoloNode(const std::string &model_path)
+    : Node("rknn_yolov5_node"), frames_(0), last_time_(0.0)
+{
+    RCLCPP_INFO(this->get_logger(), "Initializing RKNN YOLOv5 Node...");
+
+    instance_ = this;
+
+    int threadNum = 3;
+    pool_ = std::make_shared<rknnPool<rkYolov5s, cv::Mat, cv::Mat>>(model_path, threadNum);
+    int ret = pool_->init();
+    if (ret != 0)
+    {
+        RCLCPP_ERROR(this->get_logger(), "Failed to initialize rknnPool! Error code: %d", ret);
+        rclcpp::shutdown();
+        return; // 安全退出
+    }
+
+    // 订阅相机图像
+    try {
+        sub_image_raw_ = this->create_subscription<sensor_msgs::msg::Image>(
+            "/camera/camera/color/image_raw", 10,
+            std::bind(&RknnYoloNode::imageCallback, this, std::placeholders::_1));
+        sub_depth_ = this->create_subscription<sensor_msgs::msg::Image>(
+            "/camera/camera/aligned_depth_to_color/image_raw",5,
+            std::bind(&RknnYoloNode::depthCallback, this, std::placeholders::_1));
+    } catch (const std::exception &e) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to create subscription: %s", e.what());
+        rclcpp::shutdown();
+        return;
+    }
+
+    // 发布检测后的图像
+    pub_ = this->create_publisher<sensor_msgs::msg::Image>("/yolov5/detected_image", 30);
+
+    pub_targets_ = this->create_publisher<robot_msgs::msg::TargetArray>("target_info", 30);
+
+    RCLCPP_INFO(this->get_logger(), "RKNN YOLOv5 Node started successfully!");
+}
+
+void RknnYoloNode::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
+{
+    if (!pool_) return; // 防护：pool_未初始化
+
+    cv::Mat img;
+    try {
+        img = cv_bridge::toCvCopy(msg, "bgr8")->image;
+    } catch (const cv_bridge::Exception &e) {
+        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        return;
+    }
+
+    // 扔进线程池
+    if (pool_->put(img) != 0) return;
+
+    // 取结果
+    if (pool_->get(img) != 0) return;
+
+    // FPS 统计
+    frames_++;
+    if (frames_ % 60 == 0)
+    {
+        auto now = this->now();
+        double fps = 60.0 / (now.seconds() - last_time_);
+        RCLCPP_INFO(this->get_logger(), "FPS: %.2f", fps);
+        last_time_ = now.seconds();
+    }
+
+    // 发布检测结果
+    auto out_msg = cv_bridge::CvImage(msg->header, "bgr8", img).toImageMsg();
+    pub_->publish(*out_msg);
+}
+void RknnYoloNode::depthCallback(const sensor_msgs::msg::Image::SharedPtr msg)
+{
+    // ROS2 图像消息转 OpenCV 格式
+    cv_bridge::CvImagePtr cv_ptr;
+    try
+    {
+        cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
+    }
+    catch (cv_bridge::Exception &e)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        return;
+    }
+
+    // 获取深度图
+    depth_image = cv_ptr->image;
+
+}
+
+int RknnYoloNode::getDistance(int u, int v)
+{
+    // 防止越界
+    if (v >= depth_image.rows || u >= depth_image.cols)
+    {
+        RCLCPP_WARN(this->get_logger(), "Target pixel out of image range!");
+        return -1;
+    }
+
+    // 深度值（单位：毫米）
+    uint16_t depth_value = depth_image.at<uint16_t>(v, u);
+
+    // if (depth_value == 0)
+    // {
+    //     RCLCPP_WARN(this->get_logger(), "No depth at pixel (%d, %d)", u, v);
+    // }
+    // else
+    // {
+    //     RCLCPP_INFO(this->get_logger(), "Pixel (%d, %d) depth: %d mm",
+    //                 u, v, depth_value);
+    // }
+    return depth_value;
+}
+
+void RknnYoloNode::addTarget(detect_result_group_t* group)
+{
+    target_.total_count = group->count;
+
+    // 临时数组
+    int copy_count = std::min(group->count, MAX_RESULTS);
+    detect_result_t temp[MAX_RESULTS];
+    std::copy_n(group->results, copy_count, temp);
+
+    // 按 distance 从远到近排序
+    std::sort(temp, temp + copy_count, [](const detect_result_t& a, const detect_result_t& b) {
+        return a.box.distance > b.box.distance;
+    });
+
+    auto makeTarget = [](int total, int idx, const detect_result_t& d) -> TargetInfo {
+        return TargetInfo{total, idx, d.box.center_x, d.box.center_y, d.box.distance};
+    };
+
+    // 远的两个
+    const detect_result_t& far1 = temp[0];
+    const detect_result_t& far2 = temp[1];
+    if (far1.box.center_x < far2.box.center_x) {
+        target_.targets[0] = makeTarget(4, 1, far1);
+        target_.targets[1] = makeTarget(4, 2, far2);
+    } else {
+        target_.targets[0] = makeTarget(4, 1, far2);
+        target_.targets[1] = makeTarget(4, 2, far1);
+    }
+
+    // 近的两个
+    const detect_result_t& near1 = temp[copy_count - 2];
+    const detect_result_t& near2 = temp[copy_count - 1];
+    if (near1.box.center_x > near2.box.center_x) {
+        target_.targets[2] = makeTarget(4, 3, near1);
+        target_.targets[3] = makeTarget(4, 4, near2);
+    } else {
+        target_.targets[2] = makeTarget(4, 3, near2);
+        target_.targets[3] = makeTarget(4, 4, near1);
+    }
+    RCLCPP_INFO(this->get_logger(), "/////////////////////////////////////////////");
+    for (int i = 0; i < target_.total_count; i++)
+    {
+        const TargetInfo& t = target_.targets[i];
+        RCLCPP_INFO(this->get_logger(),
+            "目标 %d | 编号 index=%d | center_x=%d | center_y=%d | distance=%d",
+            i + 1,
+            t.index,
+            t.center_x,
+            t.center_y,
+            t.distance);
+    }
+
+    robot_msgs::msg::TargetArray msg;
+    for (int i = 0; i < target_.total_count; i++) {
+        robot_msgs::msg::TargetInfo t_msg;
+        t_msg.index = target_.targets[i].index;
+        t_msg.center_x = target_.targets[i].center_x;
+        t_msg.center_y = target_.targets[i].center_y;
+        t_msg.distance = target_.targets[i].distance;
+        msg.targets.push_back(t_msg);
+    }
+    pub_targets_->publish(msg);
+}
