@@ -13,17 +13,18 @@
 #include "robot_msgs/msg/target_info.hpp"
 #include "robot_msgs/msg/target_array.hpp"
 
+#include <array>
+#include <vector>
+
 constexpr int MAX_RESULTS = 32;
 
 typedef struct _TargetInfo
 {
-    // 总目标数
-    int total_count;   
     // 当前是第几个目标
     int index;         
     // 中心点坐标
-    int center_x;
-    int center_y;
+    int center_u;
+    int center_v;
     // 距离
     int distance;
 }TargetInfo;
@@ -31,7 +32,7 @@ typedef struct _TargetInfo
 typedef struct _TargetGroup
 {
     int total_count;            
-    TargetInfo targets[10];    // 固定上限
+    std::array<TargetInfo, 10> targets;    // 固定上限
 } TargetGroup;
 
 class RknnYoloNode : public rclcpp::Node

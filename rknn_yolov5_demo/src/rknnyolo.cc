@@ -66,7 +66,7 @@ void RknnYoloNode::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
         auto now = this->now();
         double fps = 60.0 / (now.seconds() - last_time_);
-        RCLCPP_INFO(this->get_logger(), "FPS: %.2f", fps);
+        // RCLCPP_INFO(this->get_logger(), "FPS: %.2f", fps);
         last_time_ = now.seconds();
     }
 
@@ -119,62 +119,154 @@ int RknnYoloNode::getDistance(int u, int v)
 
 void RknnYoloNode::addTarget(detect_result_group_t* group)
 {
-    target_.total_count = group->count;
+    detect_result_t EMPTY_RESULT{};
 
-    // 临时数组
-    int copy_count = std::min(group->count, MAX_RESULTS);
-    detect_result_t temp[MAX_RESULTS];
-    std::copy_n(group->results, copy_count, temp);
-
-    // 按 distance 从远到近排序
-    std::sort(temp, temp + copy_count, [](const detect_result_t& a, const detect_result_t& b) {
-        return a.box.distance > b.box.distance;
-    });
-
-    auto makeTarget = [](int total, int idx, const detect_result_t& d) -> TargetInfo {
-        return TargetInfo{total, idx, d.box.center_x, d.box.center_y, d.box.distance};
+    auto makeTarget = [](int idx, const detect_result_t& d) -> TargetInfo {
+        return TargetInfo{idx, d.box.center_u, d.box.center_v, d.box.distance};
     };
 
-    // 远的两个
-    const detect_result_t& far1 = temp[0];
-    const detect_result_t& far2 = temp[1];
-    if (far1.box.center_x < far2.box.center_x) {
-        target_.targets[0] = makeTarget(4, 1, far1);
-        target_.targets[1] = makeTarget(4, 2, far2);
-    } else {
-        target_.targets[0] = makeTarget(4, 1, far2);
-        target_.targets[1] = makeTarget(4, 2, far1);
-    }
+    target_.total_count = group->count;
 
-    // 近的两个
-    const detect_result_t& near1 = temp[copy_count - 2];
-    const detect_result_t& near2 = temp[copy_count - 1];
-    if (near1.box.center_x > near2.box.center_x) {
-        target_.targets[2] = makeTarget(4, 3, near1);
-        target_.targets[3] = makeTarget(4, 4, near2);
-    } else {
-        target_.targets[2] = makeTarget(4, 3, near2);
-        target_.targets[3] = makeTarget(4, 4, near1);
+    if(target_.total_count == 4)
+    {
+        // 临时数组
+        int copy_count = std::min(group->count, MAX_RESULTS);
+        detect_result_t temp[MAX_RESULTS];
+        std::copy_n(group->results, copy_count, temp);
+
+        // 按 distance 从远到近排序
+        std::sort(temp, temp + copy_count, [](const detect_result_t& a, const detect_result_t& b) {
+            return a.box.distance > b.box.distance;
+        });
+
+        // 远的两个
+        const detect_result_t& far1 = temp[0];
+        const detect_result_t& far2 = temp[1];
+        if (far1.box.center_u < far2.box.center_u) {
+            target_.targets[0] = makeTarget(1, far1);
+            target_.targets[1] = makeTarget(2, far2);
+        } else {
+            target_.targets[0] = makeTarget(1, far2);
+            target_.targets[1] = makeTarget(2, far1);
+        }
+
+        // 近的两个
+        const detect_result_t& near1 = temp[copy_count - 2];
+        const detect_result_t& near2 = temp[copy_count - 1];
+        if (near1.box.center_u < near2.box.center_u) {
+            target_.targets[2] = makeTarget(3, near1);
+            target_.targets[3] = makeTarget(4, near2);
+        } else {
+            target_.targets[2] = makeTarget(3, near2);
+            target_.targets[3] = makeTarget(4, near1);
+        }
+    }
+    else if(target_.total_count == 3)
+    {
+        // 临时数组
+        int copy_count = std::min(group->count, MAX_RESULTS);
+        detect_result_t temp[MAX_RESULTS];
+        std::copy_n(group->results, copy_count, temp);
+
+        // 按 distance 从远到近排序
+        std::sort(temp, temp + copy_count, [](const detect_result_t& a, const detect_result_t& b) {
+            return a.box.distance > b.box.distance;
+        });
+
+        // 远的两个
+        const detect_result_t& far2 = temp[0];
+
+        target_.targets[0] = makeTarget(1, EMPTY_RESULT);
+        target_.targets[1] = makeTarget(2, far2);
+
+        // 近的两个
+        const detect_result_t& near1 = temp[copy_count - 2];
+        const detect_result_t& near2 = temp[copy_count - 1];
+        if (near1.box.center_u < near2.box.center_u) {
+            target_.targets[2] = makeTarget(3, near1);
+            target_.targets[3] = makeTarget(4, near2);
+        } else {
+            target_.targets[2] = makeTarget(3, near2);
+            target_.targets[3] = makeTarget(4, near1);
+        }
+    }
+    else if(target_.total_count == 2)
+    {
+        // 临时数组
+        int copy_count = std::min(group->count, MAX_RESULTS);
+        detect_result_t temp[MAX_RESULTS];
+        std::copy_n(group->results, copy_count, temp);
+
+        // 按 distance 从远到近排序
+        std::sort(temp, temp + copy_count, [](const detect_result_t& a, const detect_result_t& b) {
+            return a.box.distance > b.box.distance;
+        });
+
+        // 远的两个
+        target_.targets[0] = makeTarget(1, EMPTY_RESULT);
+        target_.targets[1] = makeTarget(2, EMPTY_RESULT);
+
+        // 近的两个
+        const detect_result_t& near1 = temp[copy_count - 2];
+        const detect_result_t& near2 = temp[copy_count - 1];
+        if (near1.box.center_u < near2.box.center_u) {
+            target_.targets[2] = makeTarget(3, near1);
+            target_.targets[3] = makeTarget(4, near2);
+        } else {
+            target_.targets[2] = makeTarget(3, near2);
+            target_.targets[3] = makeTarget(4, near1);
+        }
+    }
+    else if(target_.total_count == 1)
+    {
+        // 临时数组
+        int copy_count = std::min(group->count, MAX_RESULTS);
+        detect_result_t temp[MAX_RESULTS];
+        std::copy_n(group->results, copy_count, temp);
+
+        // 按 distance 从远到近排序
+        std::sort(temp, temp + copy_count, [](const detect_result_t& a, const detect_result_t& b) {
+            return a.box.distance > b.box.distance;
+        });
+
+        // 远的两个
+        target_.targets[0] = makeTarget(1, EMPTY_RESULT);
+        target_.targets[1] = makeTarget(2, EMPTY_RESULT);
+
+        // 近的两个
+        const detect_result_t& near2 = temp[copy_count - 1];
+
+        target_.targets[2] = makeTarget(3, EMPTY_RESULT);
+        target_.targets[3] = makeTarget(4, near2);
+    }
+    else
+    {
+        target_.targets[0] = makeTarget(1, EMPTY_RESULT);
+        target_.targets[1] = makeTarget(2, EMPTY_RESULT);
+        target_.targets[2] = makeTarget(3, EMPTY_RESULT);
+        target_.targets[3] = makeTarget(4, EMPTY_RESULT);
     }
     RCLCPP_INFO(this->get_logger(), "/////////////////////////////////////////////");
-    for (int i = 0; i < target_.total_count; i++)
+    for (int i = 0; i < 4; i++)
     {
         const TargetInfo& t = target_.targets[i];
         RCLCPP_INFO(this->get_logger(),
-            "目标 %d | 编号 index=%d | center_x=%d | center_y=%d | distance=%d",
+            "目标 %d | 编号 index=%d | center_u=%d | center_v=%d | distance=%d",
             i + 1,
             t.index,
-            t.center_x,
-            t.center_y,
+            t.center_u,
+            t.center_v,
             t.distance);
     }
 
     robot_msgs::msg::TargetArray msg;
-    for (int i = 0; i < target_.total_count; i++) {
+    msg.total_count = target_.total_count;
+    for (int i = 0; i < 4; i++)
+    {
         robot_msgs::msg::TargetInfo t_msg;
         t_msg.index = target_.targets[i].index;
-        t_msg.center_x = target_.targets[i].center_x;
-        t_msg.center_y = target_.targets[i].center_y;
+        t_msg.center_u = target_.targets[i].center_u;
+        t_msg.center_v = target_.targets[i].center_v;
         t_msg.distance = target_.targets[i].distance;
         msg.targets.push_back(t_msg);
     }

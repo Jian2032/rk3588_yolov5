@@ -18,8 +18,8 @@ typedef struct _BOX_RECT
     int right;
     int top;
     int bottom;
-    int center_x;
-    int center_y;
+    int center_u;
+    int center_v;
     int distance;
 } BOX_RECT;
 

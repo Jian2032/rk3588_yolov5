@@ -1,4 +1,4 @@
 int32 index
-int32 center_x
-int32 center_y
+int32 center_u
+int32 center_v
 int32 distance
