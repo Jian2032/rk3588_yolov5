@@ -40,7 +40,7 @@ public:
     RobotControl();
 
     void controlLoop();
-    void calculateMovement(const PointInfo &point, const TargetInfo &target);
+    bool calculateMovement(const PointInfo &point, const TargetInfo &target);
 
 private:
     void targetCallback(const robot_msgs::msg::TargetArray::SharedPtr msg);
@@ -50,5 +50,7 @@ private:
     TargetGroup target_;
     std::array<PointInfo, 4> points_;
     rclcpp::TimerBase::SharedPtr timer_;
+
+    int index = 0;
 };
 #endif

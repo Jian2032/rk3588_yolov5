@@ -10,7 +10,7 @@ RknnYoloNode::RknnYoloNode(const std::string &model_path)
 
     instance_ = this;
 
-    int threadNum = 3;
+    int threadNum = 6;
     pool_ = std::make_shared<rknnPool<rkYolov5s, cv::Mat, cv::Mat>>(model_path, threadNum);
     int ret = pool_->init();
     if (ret != 0)
@@ -23,10 +23,10 @@ RknnYoloNode::RknnYoloNode(const std::string &model_path)
     // 订阅相机图像
     try {
         sub_image_raw_ = this->create_subscription<sensor_msgs::msg::Image>(
-            "/camera/camera/color/image_raw", 10,
+            "/camera/camera/color/image_raw", 100,
             std::bind(&RknnYoloNode::imageCallback, this, std::placeholders::_1));
         sub_depth_ = this->create_subscription<sensor_msgs::msg::Image>(
-            "/camera/camera/aligned_depth_to_color/image_raw",5,
+            "/camera/camera/aligned_depth_to_color/image_raw",100,
             std::bind(&RknnYoloNode::depthCallback, this, std::placeholders::_1));
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Failed to create subscription: %s", e.what());
@@ -66,7 +66,7 @@ void RknnYoloNode::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
         auto now = this->now();
         double fps = 60.0 / (now.seconds() - last_time_);
-        // RCLCPP_INFO(this->get_logger(), "FPS: %.2f", fps);
+        RCLCPP_INFO(this->get_logger(), "FPS: %.2f", fps);
         last_time_ = now.seconds();
     }
 
@@ -246,17 +246,17 @@ void RknnYoloNode::addTarget(detect_result_group_t* group)
         target_.targets[2] = makeTarget(3, EMPTY_RESULT);
         target_.targets[3] = makeTarget(4, EMPTY_RESULT);
     }
-    RCLCPP_INFO(this->get_logger(), "/////////////////////////////////////////////");
+    // RCLCPP_INFO(this->get_logger(), "/////////////////////////////////////////////");
     for (int i = 0; i < 4; i++)
     {
         const TargetInfo& t = target_.targets[i];
-        RCLCPP_INFO(this->get_logger(),
-            "目标 %d | 编号 index=%d | center_u=%d | center_v=%d | distance=%d",
-            i + 1,
-            t.index,
-            t.center_u,
-            t.center_v,
-            t.distance);
+        // RCLCPP_INFO(this->get_logger(),
+        //     "目标 %d | 编号 index=%d | center_u=%d | center_v=%d | distance=%d",
+        //     i + 1,
+        //     t.index,
+        //     t.center_u,
+        //     t.center_v,
+        //     t.distance);
     }
 
     robot_msgs::msg::TargetArray msg;

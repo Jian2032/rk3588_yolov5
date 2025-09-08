@@ -3,10 +3,10 @@
 
 RobotControl::RobotControl() : Node("robot_control_node")
 {
-    points_.at(0) = {1, 0, 0, 0};
-    points_.at(1) = {2, 0, 0, 0};
-    points_.at(2) = {3, 0, 0, 0};
-    points_.at(3) = {4, 620, 345, 390};
+    points_.at(0) = {1, 625, 375, 350};
+    points_.at(1) = {2, 815, 385, 345};
+    points_.at(2) = {3, 490, 335, 290};
+    points_.at(3) = {4, 910, 290, 280};
 
     sub_target_ = this->create_subscription<robot_msgs::msg::TargetArray>(
         "/target_info", 10,
@@ -40,7 +40,7 @@ void RobotControl::targetCallback(const robot_msgs::msg::TargetArray::SharedPtr 
     }
 }
 
-void RobotControl::calculateMovement(const PointInfo &point, const TargetInfo &target)
+bool RobotControl::calculateMovement(const PointInfo &point, const TargetInfo &target)
 {
     robot_msgs::msg::ArmControl msg;
 
@@ -81,16 +81,40 @@ void RobotControl::calculateMovement(const PointInfo &point, const TargetInfo &t
     if(abs(point.distance - target.distance) <= 5)
         msg.direction_x = 0;
 
-    if(target.center_u == 0 || target.center_v == 0 || target.distance == 0)
+    if(target.center_u == 0 || target.center_v == 0 || target.distance == 0 
+        || target.center_u > 1280 || target.center_v > 720 || target.distance >= 1000
+        || target.center_u < 0 || target.center_v < 0 || target.distance < 0)
     {
         msg.direction_y = 0;
         msg.direction_z = 0;
         msg.direction_x = 0;
     }
 
+    if(abs(point.u - target.center_u) <= 5 && abs(point.v - target.center_v) <= 5 && abs(point.distance - target.distance) <= 5)
+    {
+        msg.direction_y = 0;
+        msg.direction_z = 0;
+        msg.direction_x = 0;
+
+        pub_arm_->publish(msg);
+
+        return true;
+    }
+
     pub_arm_->publish(msg);
+
+    return false;
 }
 void RobotControl::controlLoop()
 {
-    calculateMovement(points_[3],target_.targets[3]);
+    calculateMovement(points_[index],target_.targets[index]);
+
+    if(calculateMovement(points_[index],target_.targets[index])){
+        index++;
+        RCLCPP_INFO(this->get_logger(), "Waiting 5 seconds...");
+        std::this_thread::sleep_for(std::chrono::seconds(10));  // 阻塞 5 秒
+    }
+
+    if (index >= 3) index = 3 ;
+
 }

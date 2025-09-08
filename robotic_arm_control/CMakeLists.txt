@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(robot_msgs REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -37,7 +38,7 @@ include_directories(
 # --------------------------
 add_executable(robotic_arm_control_node
   src/robotic_arm_control.cpp
-  src/control.cpp
+  src/keyboard_reader.cpp
 )
 
 # --------------------------
@@ -53,6 +54,7 @@ target_link_libraries(robotic_arm_control_node
 ament_target_dependencies(robotic_arm_control_node
   rclcpp
   std_msgs
+  robot_msgs
 )
 
 # --------------------------

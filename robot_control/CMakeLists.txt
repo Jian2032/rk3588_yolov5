@@ -29,7 +29,7 @@ include_directories(
 
 
 add_executable(robot_control_node 
-  src/control_node.cpp
+  src/controller.cpp
   src/robot_control.cpp
 )
 

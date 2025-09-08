@@ -558,7 +558,7 @@ EXPORT_API Result robot_start_jogging_robot(SOCKETFD socketFd, int robotNum, int
 
 /**
  * @brief 停止点动
- * @param axis 轴号
+ * @param axis 轴号 1-x 2-y 3-z
  */
 EXPORT_API Result robot_stop_jogging(SOCKETFD socketFd, int axis);
 EXPORT_API Result robot_stop_jogging_robot(SOCKETFD socketFd, int robotNum, int axis);
