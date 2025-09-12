@@ -22,7 +22,8 @@ namespace dpool
         using Thread = std::thread;
         using ThreadID = std::thread::id;
         using Task = std::function<void()>;
-
+        
+        // 构造函数，使用默认CPU核心数作为默认线程数
         ThreadPool()
             : ThreadPool(Thread::hardware_concurrency())
         {
@@ -36,7 +37,7 @@ namespace dpool
         {
         }
 
-        // disable the copy operations
+        // 禁止拷贝，线程池对象不可复制
         ThreadPool(const ThreadPool &) = delete;
         ThreadPool &operator=(const ThreadPool &) = delete;
 
@@ -55,6 +56,7 @@ namespace dpool
             }
         }
 
+        // 可变参数模板
         template <typename Func, typename... Ts>
         auto submit(Func &&func, Ts &&...params)
             -> std::future<typename std::result_of<Func(Ts...)>::type>

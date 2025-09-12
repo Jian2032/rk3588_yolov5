@@ -26,6 +26,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TargetInfo.msg"
   "msg/TargetArray.msg"
   "msg/ArmControl.msg"
+  "msg/ArmInfo.msg"
   DEPENDENCIES std_msgs
 )
 

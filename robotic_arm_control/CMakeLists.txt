@@ -39,6 +39,7 @@ include_directories(
 add_executable(robotic_arm_control_node
   src/robotic_arm_control.cpp
   src/keyboard_reader.cpp
+  src/arm_control.cpp
 )
 
 # --------------------------

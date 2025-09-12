@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     rclcpp::init(argc, argv);
 
     std::string pkg_path = ament_index_cpp::get_package_share_directory("rknn_yolov5_demo");
-    std::string model_path = pkg_path + "/model/RK3588/best_s.rknn";
+    std::string model_path = pkg_path + "/model/RK3588/best_m.rknn";
 
     RCLCPP_INFO(rclcpp::get_logger("rknn_yolov5_node"), 
         "Using model: %s", model_path.c_str());

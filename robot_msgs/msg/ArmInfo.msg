@@ -1,0 +1,8 @@
+float64 tcp_position_x
+float64 tcp_position_y
+float64 tcp_position_z
+float64 tcp_position_u
+float64 joint_position_1
+float64 joint_position_2
+float64 joint_position_3
+float64 joint_position_4

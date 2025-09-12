@@ -1,16 +1,19 @@
 #include "rknnyolo.hpp"
 #include "postprocess.h"
 
+// 创建静态指针后期用于保存对象
 RknnYoloNode* RknnYoloNode::instance_ = nullptr;
 
+// RknnYoloNode构造函数
 RknnYoloNode::RknnYoloNode(const std::string &model_path)
     : Node("rknn_yolov5_node"), frames_(0), last_time_(0.0)
 {
     RCLCPP_INFO(this->get_logger(), "Initializing RKNN YOLOv5 Node...");
-
+    // 保存当前类的指针
     instance_ = this;
-
-    int threadNum = 6;
+    // 创建线程数
+    int threadNum = 3;
+    // 创建线程池
     pool_ = std::make_shared<rknnPool<rkYolov5s, cv::Mat, cv::Mat>>(model_path, threadNum);
     int ret = pool_->init();
     if (ret != 0)
@@ -34,17 +37,30 @@ RknnYoloNode::RknnYoloNode(const std::string &model_path)
         return;
     }
 
-    // 发布检测后的图像
-    pub_ = this->create_publisher<sensor_msgs::msg::Image>("/yolov5/detected_image", 30);
+    // 发布检测后的图像和目标点
+    pub_img_ = this->create_publisher<sensor_msgs::msg::Image>("/yolov5/detected_image", 30);
 
     pub_targets_ = this->create_publisher<robot_msgs::msg::TargetArray>("target_info", 30);
+
+    // 开启处理线程
+    running_ = true;
+    worker_ = std::thread(&RknnYoloNode::processThread, this);
 
     RCLCPP_INFO(this->get_logger(), "RKNN YOLOv5 Node started successfully!");
 }
 
+RknnYoloNode::~RknnYoloNode()
+{
+    running_ = false;
+    if (worker_.joinable()) worker_.join();
+
+    robot_msgs::msg::TargetArray msg{};
+    pub_targets_->publish(msg);
+}
+
 void RknnYoloNode::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
-    if (!pool_) return; // 防护：pool_未初始化
+    if (!pool_) return;
 
     cv::Mat img;
     try {
@@ -54,26 +70,36 @@ void RknnYoloNode::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
         return;
     }
 
-    // 扔进线程池
-    if (pool_->put(img) != 0) return;
-
-    // 取结果
-    if (pool_->get(img) != 0) return;
-
-    // FPS 统计
-    frames_++;
-    if (frames_ % 60 == 0)
-    {
-        auto now = this->now();
-        double fps = 60.0 / (now.seconds() - last_time_);
-        RCLCPP_INFO(this->get_logger(), "FPS: %.2f", fps);
-        last_time_ = now.seconds();
+    // 入队（只管放图像，不做推理）
+    if (pool_->put(img) != 0) {
+        RCLCPP_WARN(this->get_logger(), "ThreadPool is full, dropping frame");
     }
-
-    // 发布检测结果
-    auto out_msg = cv_bridge::CvImage(msg->header, "bgr8", img).toImageMsg();
-    pub_->publish(*out_msg);
 }
+
+void RknnYoloNode::processThread()
+{
+    while (rclcpp::ok() && running_)
+    {
+        cv::Mat img;
+        if (pool_->get(img) != 0) continue;
+
+        // FPS 统计
+        frames_++;
+        if (frames_ % 60 == 0) {
+            auto now = this->now();
+            double fps = 60.0 / (now.seconds() - last_time_);
+            RCLCPP_INFO(this->get_logger(), "FPS: %.2f", fps);
+            last_time_ = now.seconds();
+        }
+
+        // 发布结果
+        std_msgs::msg::Header header;
+        header.stamp = this->now();
+        auto out_msg = cv_bridge::CvImage(header, "bgr8", img).toImageMsg();
+        pub_img_->publish(*out_msg);
+    }
+}
+
 void RknnYoloNode::depthCallback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
     // ROS2 图像消息转 OpenCV 格式

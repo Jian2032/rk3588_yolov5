@@ -12,12 +12,21 @@ RobotControl::RobotControl() : Node("robot_control_node")
         "/target_info", 10,
         std ::bind(&RobotControl::targetCallback, this, std::placeholders::_1));
     
-    pub_arm_ = this->create_publisher<robot_msgs::msg::ArmControl>("arm_control", 10);
+    pub_arm_ctl_ = this->create_publisher<robot_msgs::msg::ArmControl>("arm_control", 10);
     
     // 创建定时器 (10ms 周期)
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(10),
         std::bind(&RobotControl::controlLoop, this));
+}
+
+RobotControl::~RobotControl()
+{
+    // 发布清零消息
+    robot_msgs::msg::ArmControl msg{};
+
+    pub_arm_ctl_->publish(msg);
+
 }
 
 void RobotControl::targetCallback(const robot_msgs::msg::TargetArray::SharedPtr msg)
@@ -54,17 +63,17 @@ bool RobotControl::calculateMovement(const PointInfo &point, const TargetInfo &t
         target.index, target.center_u, target.center_v, target.distance);
 
     if(point.u > target.center_u){
-        msg.direction_y = 1;
+        msg.direction_y = -1;
     }
     else{
-        msg.direction_y = -1;
+        msg.direction_y = 1;
     }
 
     if(point.v > target.center_v){
-        msg.direction_z = -1;
+        msg.direction_z = 1;
     }
     else{
-        msg.direction_z = 1;
+        msg.direction_z = -1;
     }
 
     if(point.distance > target.distance){
@@ -96,25 +105,30 @@ bool RobotControl::calculateMovement(const PointInfo &point, const TargetInfo &t
         msg.direction_z = 0;
         msg.direction_x = 0;
 
-        pub_arm_->publish(msg);
+        pub_arm_ctl_->publish(msg);
 
         return true;
     }
 
-    pub_arm_->publish(msg);
+    pub_arm_ctl_->publish(msg);
 
     return false;
 }
 void RobotControl::controlLoop()
 {
-    calculateMovement(points_[index],target_.targets[index]);
+    static auto last_time = std::chrono::steady_clock::now();
 
-    if(calculateMovement(points_[index],target_.targets[index])){
+    if (calculateMovement(points_[index],target_.targets[index])){
         index++;
-        RCLCPP_INFO(this->get_logger(), "Waiting 5 seconds...");
-        std::this_thread::sleep_for(std::chrono::seconds(10));  // 阻塞 5 秒
+        last_time = std::chrono::steady_clock::now();
+        RCLCPP_INFO(this->get_logger(), "Waiting 10 seconds...");
     }
 
-    if (index >= 3) index = 3 ;
+    if (index >= 3) index = 3;
 
+    // 非阻塞等待 10 秒
+    auto now = std::chrono::steady_clock::now();
+    if (std::chrono::duration_cast<std::chrono::seconds>(now - last_time).count() < 10) {
+        return; // 等待中，直接返回
+    }
 }

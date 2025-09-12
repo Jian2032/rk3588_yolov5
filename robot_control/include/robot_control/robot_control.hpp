@@ -38,6 +38,7 @@ class RobotControl : public rclcpp::Node
 {
 public:
     RobotControl();
+    ~RobotControl();
 
     void controlLoop();
     bool calculateMovement(const PointInfo &point, const TargetInfo &target);
@@ -45,7 +46,7 @@ public:
 private:
     void targetCallback(const robot_msgs::msg::TargetArray::SharedPtr msg);
     rclcpp::Subscription<robot_msgs::msg::TargetArray>::SharedPtr sub_target_;
-    rclcpp::Publisher<robot_msgs::msg::ArmControl>::SharedPtr pub_arm_;
+    rclcpp::Publisher<robot_msgs::msg::ArmControl>::SharedPtr pub_arm_ctl_;
 
     TargetGroup target_;
     std::array<PointInfo, 4> points_;
