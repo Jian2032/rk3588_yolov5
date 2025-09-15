@@ -21,9 +21,9 @@
 typedef struct _ArmControlData
 {
     int mode;
-    int position_x;
-    int position_y;
-    int position_z;
+    double position_x;
+    double position_y;
+    double position_z;
     double position_u;
     int direction_x;
     int direction_y;

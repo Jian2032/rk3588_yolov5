@@ -48,83 +48,11 @@ ArmControl::ArmControl()
 
 ArmControl::~ArmControl()
 {
+    robot_msgs::msg::ArmInfo msg{};
+    pub_arm_info_->publish(msg);
+
     set_current_mode(fd, 0);
     set_servo_poweroff(fd);
-}
-
-void ArmControl::arm_control_loop()
-{
-    // 获取当前位置
-    double new_x, new_y, new_z, new_u;
-    robot_msgs::msg::ArmInfo msg;
-
-    get_current_position(fd, 1, pos_tcp);
-    std::cout << std::fixed << std::setprecision(3);
-    std::cout << "当前直角坐标：" << pos_tcp[0] << " " << pos_tcp[1] << " " << pos_tcp[2] << " " << pos_tcp[3] << " " << pos_tcp[4] << " " << pos_tcp[5] << " " << pos_tcp[6] << std::endl;
-    msg.tcp_position_x = pos_tcp[0];
-    msg.tcp_position_y = pos_tcp[1];
-    msg.tcp_position_z = pos_tcp[2];
-    msg.tcp_position_u = pos_tcp[5];
-    get_current_position(fd, 0, pos_joint);
-    std::cout << std::fixed << std::setprecision(3);
-    std::cout << "当前关节坐标：" << pos_joint[0] << " " << pos_joint[1] << " " << pos_joint[2] << " " << pos_joint[3] << " " << pos_joint[4] << " " << pos_joint[5] << " " << pos_joint[6] << std::endl;
-    msg.joint_position_1 = pos_joint[0];
-    msg.joint_position_2 = pos_joint[1];
-    msg.joint_position_3 = pos_joint[2];
-    msg.joint_position_4 = pos_joint[3];
-
-    std::cout << std::fixed << std::setprecision(3);
-    std::cout << "ArmControl msg received: " 
-              << "mode="       << arm_data.mode
-              << " pos=("      << arm_data.position_x 
-              << ", "          << arm_data.position_y 
-              << ", "          << arm_data.position_z 
-              << ", u="        << arm_data.position_u << ")"
-              << " dir=("      << arm_data.direction_x 
-              << ", "          << arm_data.direction_y 
-              << ", "          << arm_data.direction_z 
-              << ", u="        << arm_data.direction_u << ")"
-              << std::endl;
-
-    switch (arm_data.mode)
-    {
-    case -1:
-        break;
-    case 0:
-        new_x = (double)arm_data.position_x;
-        new_y = (double)arm_data.position_y;
-        new_z = (double)arm_data.position_z;
-        new_u = arm_data.position_u;
-        break;
-    case 1:
-        new_x = pos_tcp[0] + (double)arm_data.direction_x * 2;
-        new_y = pos_tcp[1] + (double)arm_data.direction_y * 2;
-        new_z = pos_tcp[2] + (double)arm_data.direction_z * 2;
-        new_u = pos_tcp[5] + arm_data.direction_u * 0.01;
-        break;
-    default:
-        RCLCPP_WARN(rclcpp::get_logger("controlArm"), "Unknown mode: %d", arm_data.mode);
-        break;
-    }
-
-    double r = std::sqrt(new_x * new_x + new_y * new_y);
-    if (new_x >= 0 && new_y >= 0 && r <= 575.0 && new_z >= -295 && new_z <= -230)
-    {
-        pos_tcp[0] = new_x;
-        pos_tcp[1] = new_y;
-        pos_tcp[2] = new_z;
-        pos_tcp[5] = new_u;
-    }
-    else
-    {
-        std::cout << "⚠️ 越界: x=" << new_x
-                  << " y=" << new_y
-                  << " r=" << r
-                  << " 忽略更新" << std::endl;
-    }
-
-    loadpos(move_cmd, pos_tcp, 1, 20, 5, 5);
-    robot_movel(fd, move_cmd);
 }
 
 /*
@@ -261,5 +189,84 @@ void ArmControl::arm_control_jog(ArmControlData data)
             robot_stop_jogging(fd, 2);
             robot_stop_jogging(fd, 3);
         }
+    }
+}
+
+void ArmControl::arm_control_loop()
+{
+    // 获取当前位置
+    double new_x, new_y, new_z, new_u;
+    robot_msgs::msg::ArmInfo msg;
+
+    get_current_position(fd, 1, pos_tcp);
+    std::cout << std::fixed << std::setprecision(3);
+    std::cout << "当前直角坐标：" << pos_tcp[0] << " " << pos_tcp[1] << " " << pos_tcp[2] << " " << pos_tcp[3] << " " << pos_tcp[4] << " " << pos_tcp[5] << " " << pos_tcp[6] << std::endl;
+    msg.tcp_position_x = pos_tcp[0];
+    msg.tcp_position_y = pos_tcp[1];
+    msg.tcp_position_z = pos_tcp[2];
+    msg.tcp_position_u = pos_tcp[5];
+    get_current_position(fd, 0, pos_joint);
+    std::cout << std::fixed << std::setprecision(3);
+    std::cout << "当前关节坐标：" << pos_joint[0] << " " << pos_joint[1] << " " << pos_joint[2] << " " << pos_joint[3] << " " << pos_joint[4] << " " << pos_joint[5] << " " << pos_joint[6] << std::endl;
+    msg.joint_position_1 = pos_joint[0];
+    msg.joint_position_2 = pos_joint[1];
+    msg.joint_position_3 = pos_joint[2];
+    msg.joint_position_4 = pos_joint[3];
+
+    std::cout << std::fixed << std::setprecision(3);
+    std::cout << "ArmControl msg received: " 
+              << "mode="       << arm_data.mode
+              << " pos=("      << arm_data.position_x 
+              << ", "          << arm_data.position_y 
+              << ", "          << arm_data.position_z 
+              << ", u="        << arm_data.position_u << ")"
+              << " dir=("      << arm_data.direction_x 
+              << ", "          << arm_data.direction_y 
+              << ", "          << arm_data.direction_z 
+              << ", u="        << arm_data.direction_u << ")"
+              << std::endl;
+
+    pub_arm_info_->publish(msg);
+
+    switch (arm_data.mode)
+    {
+    case -1:
+        break;
+    case 0:
+        new_x = (double)arm_data.position_x;
+        new_y = (double)arm_data.position_y;
+        new_z = (double)arm_data.position_z;
+        new_u = arm_data.position_u;
+        break;
+    case 1:
+        new_x = pos_tcp[0] + (double)arm_data.direction_x * 2;
+        new_y = pos_tcp[1] + (double)arm_data.direction_y * 2;
+        new_z = pos_tcp[2] + (double)arm_data.direction_z * 2;
+        new_u = pos_tcp[5] + arm_data.direction_u * 0.01;
+        break;
+    default:
+        RCLCPP_WARN(rclcpp::get_logger("controlArm"), "Unknown mode: %d", arm_data.mode);
+        break;
+    }
+
+    double r = std::sqrt(new_x * new_x + new_y * new_y);
+    if (new_x >= -50 && new_y >= -50 && r <= 575.0 && new_z >= -295 && new_z <= -230)
+    {
+        pos_tcp[0] = new_x;
+        pos_tcp[1] = new_y;
+        pos_tcp[2] = new_z;
+        pos_tcp[5] = new_u;
+    }
+    else
+    {
+        std::cout << "⚠️ 越界: x=" << new_x
+                  << " y=" << new_y
+                  << " r=" << r
+                  << " 忽略更新" << std::endl;
+    }
+
+    if (arm_data.mode != -1) {
+        loadpos(move_cmd, pos_tcp, 1, 50, 20, 20);
+        robot_movel(fd, move_cmd);
     }
 }
