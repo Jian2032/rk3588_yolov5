@@ -40,7 +40,6 @@ ArmControl::ArmControl()
     std::cout << std::fixed << std::setprecision(3);
     std::cout << "当前直角坐标：" << pos_tcp[0] << " " << pos_tcp[1] << " " << pos_tcp[2] << " " << pos_tcp[3] << " " << pos_tcp[4] << " " << pos_tcp[5] << " " << pos_tcp[6] << std::endl;
 
-
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(50),
         std::bind(&ArmControl::arm_control_loop, this));
@@ -214,16 +213,16 @@ void ArmControl::arm_control_loop()
     msg.joint_position_4 = pos_joint[3];
 
     std::cout << std::fixed << std::setprecision(3);
-    std::cout << "ArmControl msg received: " 
-              << "mode="       << arm_data.mode
-              << " pos=("      << arm_data.position_x 
-              << ", "          << arm_data.position_y 
-              << ", "          << arm_data.position_z 
-              << ", u="        << arm_data.position_u << ")"
-              << " dir=("      << arm_data.direction_x 
-              << ", "          << arm_data.direction_y 
-              << ", "          << arm_data.direction_z 
-              << ", u="        << arm_data.direction_u << ")"
+    std::cout << "ArmControl msg received: "
+              << "mode=" << arm_data.mode
+              << " pos=(" << arm_data.position_x
+              << ", " << arm_data.position_y
+              << ", " << arm_data.position_z
+              << ", u=" << arm_data.position_u << ")"
+              << " dir=(" << arm_data.direction_x
+              << ", " << arm_data.direction_y
+              << ", " << arm_data.direction_z
+              << ", u=" << arm_data.direction_u << ")"
               << std::endl;
 
     pub_arm_info_->publish(msg);
@@ -250,7 +249,7 @@ void ArmControl::arm_control_loop()
     }
 
     double r = std::sqrt(new_x * new_x + new_y * new_y);
-    if (new_x >= -50 && new_y >= -50 && r <= 575.0 && new_z >= -295 && new_z <= -230)
+    if (new_x >= -50.0 && new_y >= -50.0 && r <= 575.0 && new_z >= -295.0 && new_z <= -230.0)
     {
         pos_tcp[0] = new_x;
         pos_tcp[1] = new_y;
@@ -265,7 +264,8 @@ void ArmControl::arm_control_loop()
                   << " 忽略更新" << std::endl;
     }
 
-    if (arm_data.mode != -1) {
+    if (arm_data.mode != -1)
+    {
         loadpos(move_cmd, pos_tcp, 1, 50, 20, 20);
         robot_movel(fd, move_cmd);
     }

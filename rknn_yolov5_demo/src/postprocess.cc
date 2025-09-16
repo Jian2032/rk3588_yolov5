@@ -354,7 +354,7 @@ int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h,
     group->results[last_count].box.bottom = (int)(clamp(y2, 0, model_in_h) / scale_h);
     group->results[last_count].box.center_u = (int)((group->results[last_count].box.left + group->results[last_count].box.right) / 2);
     group->results[last_count].box.center_v = (int)((group->results[last_count].box.top + group->results[last_count].box.bottom) / 2);
-    group->results[last_count].box.distance = RknnYoloNode::getInstance()->getDistance(group->results[last_count].box.center_u,group->results[last_count].box.center_v);
+    group->results[last_count].box.distance = RknnYoloNode::getInstance()->getDistance(group->results[last_count].box.center_u, group->results[last_count].box.center_v);
     group->results[last_count].prop = obj_conf;
     char *label = labels[id];
     strncpy(group->results[last_count].name, label, OBJ_NAME_MAX_SIZE);
@@ -367,7 +367,6 @@ int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h,
   group->count = last_count;
 
   RknnYoloNode::getInstance()->addTarget(group);
-  
 
   return 0;
 }

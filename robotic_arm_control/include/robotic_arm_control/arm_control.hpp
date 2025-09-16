@@ -17,7 +17,6 @@
 #include "robot_msgs/msg/arm_info.hpp"
 #include "keyboard_reader.hpp"
 
-
 typedef struct _ArmControlData
 {
     int mode;
@@ -29,35 +28,35 @@ typedef struct _ArmControlData
     int direction_y;
     int direction_z;
     double direction_u;
-}ArmControlData;
+} ArmControlData;
 
 class ArmControl : public rclcpp::Node, public KeyboardReader
 {
-    public:
-        ArmControl();
-        ~ArmControl();
+public:
+    ArmControl();
+    ~ArmControl();
 
-        void arm_control_loop();
+    void arm_control_loop();
 
-    private:
-        void power_on(int fd);
-        void wait_for_running_over(int fd, int timeout_ms);
-        void arm_control_jog(ArmControlData data);
-        void loadpos(MoveCmd &m, std::vector<double> pos, int coord, double velocity, double acc, double dcc);
+private:
+    void power_on(int fd);
+    void wait_for_running_over(int fd, int timeout_ms);
+    void arm_control_jog(ArmControlData data);
+    void loadpos(MoveCmd &m, std::vector<double> pos, int coord, double velocity, double acc, double dcc);
 
-        void ArmControlCallback(const robot_msgs::msg::ArmControl::SharedPtr msg);
+    void ArmControlCallback(const robot_msgs::msg::ArmControl::SharedPtr msg);
 
-        rclcpp::Publisher<robot_msgs::msg::ArmInfo>::SharedPtr pub_arm_info_;
-        rclcpp::Subscription<robot_msgs::msg::ArmControl>::SharedPtr sub_control_;
+    rclcpp::Publisher<robot_msgs::msg::ArmInfo>::SharedPtr pub_arm_info_;
+    rclcpp::Subscription<robot_msgs::msg::ArmControl>::SharedPtr sub_control_;
 
-        SOCKETFD fd;
-        Result res;
-        ArmControlData arm_data;
-        int cnt = 0;
-        int key;
-        std::vector<double> pos_tcp,pos_joint;
-        MoveCmd move_cmd;
-        rclcpp::TimerBase::SharedPtr timer_;
+    SOCKETFD fd;
+    Result res;
+    ArmControlData arm_data;
+    int cnt = 0;
+    int key;
+    std::vector<double> pos_tcp, pos_joint;
+    MoveCmd move_cmd;
+    rclcpp::TimerBase::SharedPtr timer_;
 };
 
 #endif

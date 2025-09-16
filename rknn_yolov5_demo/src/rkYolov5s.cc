@@ -276,7 +276,7 @@ cv::Mat rkYolov5s::infer(cv::Mat &orig_img)
     }
     post_process((int8_t *)outputs[0].buf, (int8_t *)outputs[1].buf, (int8_t *)outputs[2].buf, height, width,
                  box_conf_threshold, nms_threshold, pads, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-    
+
     // 绘制框体/Draw the box
     char text[256];
     for (int i = 0; i < detect_result_group.count; i++)
