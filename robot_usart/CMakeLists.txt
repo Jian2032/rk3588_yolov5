@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(robot_control)
+project(robot_usart)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -9,7 +9,31 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(robot_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+
+
+include_directories(include)
+
+
+add_executable(usart_node
+  src/usart_node.cpp
+  src/usart_config.cpp
+  src/crc.cpp
+)
+
+ament_target_dependencies(usart_node
+  rclcpp
+  std_msgs
+  nav_msgs
+  ament_index_cpp
+)
+
+install(TARGETS
+  usart_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -23,27 +47,4 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-include_directories(
-  include ${rclcpp_INCLUDE_DIRS} ${std_msgs_INCLUDE_DIRS}
-)
-
-
-add_executable(robot_control_node 
-  src/controller.cpp
-  src/robot_control.cpp
-)
-
-ament_target_dependencies(robot_control_node
-  rclcpp
-  std_msgs
-  robot_msgs
-)
-
-install(TARGETS robot_control_node
-  DESTINATION lib/${PROJECT_NAME} 
-)
-
-install(DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}/
-)
 ament_package()

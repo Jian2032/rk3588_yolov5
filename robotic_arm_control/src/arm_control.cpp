@@ -30,7 +30,7 @@ ArmControl::ArmControl()
     // 设置示教模式，只有示教模式下的运动需要上电
     set_current_mode(fd, 0);
     // 设置示教模式下的全局速度
-    set_speed(fd, 50);
+    set_speed(fd, 20);
     // 调用封装的上电函数
     power_on(fd);
 
@@ -41,7 +41,7 @@ ArmControl::ArmControl()
     std::cout << "当前直角坐标：" << pos_tcp[0] << " " << pos_tcp[1] << " " << pos_tcp[2] << " " << pos_tcp[3] << " " << pos_tcp[4] << " " << pos_tcp[5] << " " << pos_tcp[6] << std::endl;
 
     timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(50),
+        std::chrono::milliseconds(100),
         std::bind(&ArmControl::arm_control_loop, this));
 }
 
@@ -115,11 +115,13 @@ void ArmControl::loadpos(MoveCmd &m, std::vector<double> pos, int coord, double 
     m.dec = dcc;
     m.velocity = velocity;
     m.targetPosValue.assign(pos.begin(), pos.end());
+    m.pl = 5;
 }
 
 void ArmControl::ArmControlCallback(const robot_msgs::msg::ArmControl::SharedPtr msg)
 {
     arm_data.mode = msg->mode;
+    arm_data.work_phase = msg->work_phase;
     arm_data.position_x = msg->position_x;
     arm_data.position_y = msg->position_y;
     arm_data.position_z = msg->position_z;
@@ -205,8 +207,8 @@ void ArmControl::arm_control_loop()
     msg.tcp_position_z = pos_tcp[2];
     msg.tcp_position_u = pos_tcp[5];
     get_current_position(fd, 0, pos_joint);
-    std::cout << std::fixed << std::setprecision(3);
-    std::cout << "当前关节坐标：" << pos_joint[0] << " " << pos_joint[1] << " " << pos_joint[2] << " " << pos_joint[3] << " " << pos_joint[4] << " " << pos_joint[5] << " " << pos_joint[6] << std::endl;
+    // std::cout << std::fixed << std::setprecision(3);
+    // std::cout << "当前关节坐标：" << pos_joint[0] << " " << pos_joint[1] << " " << pos_joint[2] << " " << pos_joint[3] << " " << pos_joint[4] << " " << pos_joint[5] << " " << pos_joint[6] << std::endl;
     msg.joint_position_1 = pos_joint[0];
     msg.joint_position_2 = pos_joint[1];
     msg.joint_position_3 = pos_joint[2];
@@ -266,7 +268,7 @@ void ArmControl::arm_control_loop()
 
     if (arm_data.mode != -1)
     {
-        loadpos(move_cmd, pos_tcp, 1, 50, 20, 20);
+        loadpos(move_cmd, pos_tcp, 1, 50, 100, 100);
         robot_movel(fd, move_cmd);
     }
 }

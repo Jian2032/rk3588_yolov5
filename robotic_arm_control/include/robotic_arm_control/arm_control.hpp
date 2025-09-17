@@ -19,7 +19,8 @@
 
 typedef struct _ArmControlData
 {
-    int mode;
+    int8_t mode;
+    int8_t work_phase;
     double position_x;
     double position_y;
     double position_z;

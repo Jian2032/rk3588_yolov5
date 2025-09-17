@@ -178,7 +178,7 @@ void RknnYoloNode::addTarget(detect_result_group_t *group)
         // 远的两个
         const detect_result_t &far1 = temp[0];
         const detect_result_t &far2 = temp[1];
-        if (far1.box.center_u < far2.box.center_u)
+        if (far1.box.center_u > far2.box.center_u)
         {
             target_.targets[0] = makeTarget(1, far1);
             target_.targets[1] = makeTarget(2, far2);
@@ -192,7 +192,7 @@ void RknnYoloNode::addTarget(detect_result_group_t *group)
         // 近的两个
         const detect_result_t &near1 = temp[copy_count - 2];
         const detect_result_t &near2 = temp[copy_count - 1];
-        if (near1.box.center_u < near2.box.center_u)
+        if (near1.box.center_u > near2.box.center_u)
         {
             target_.targets[2] = makeTarget(3, near1);
             target_.targets[3] = makeTarget(4, near2);
@@ -223,7 +223,7 @@ void RknnYoloNode::addTarget(detect_result_group_t *group)
         // 近的两个
         const detect_result_t &near1 = temp[copy_count - 2];
         const detect_result_t &near2 = temp[copy_count - 1];
-        if (near1.box.center_u < near2.box.center_u)
+        if (near1.box.center_u > near2.box.center_u)
         {
             target_.targets[2] = makeTarget(3, near1);
             target_.targets[3] = makeTarget(4, near2);
@@ -252,7 +252,7 @@ void RknnYoloNode::addTarget(detect_result_group_t *group)
         // 近的两个
         const detect_result_t &near1 = temp[copy_count - 2];
         const detect_result_t &near2 = temp[copy_count - 1];
-        if (near1.box.center_u < near2.box.center_u)
+        if (near1.box.center_u > near2.box.center_u)
         {
             target_.targets[2] = makeTarget(3, near1);
             target_.targets[3] = makeTarget(4, near2);

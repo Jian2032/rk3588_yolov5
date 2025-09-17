@@ -49,7 +49,7 @@ private:
     // 机械臂点位运动控制
     bool calculatePointMovement(const std::array<double, 4> current_tcp_, const std::array<double, 4> target_tcp_);
     // 控制继电器
-    void setRcCtl(const std::array<uint8_t, 10>& input, std_msgs::msg::UInt8MultiArray &rc_ctl);
+    void setRcCtl(const std::array<uint8_t, 10> &input, std_msgs::msg::UInt8MultiArray &rc_ctl);
     // 视觉识别乳头位置回调
     void targetCallback(const robot_msgs::msg::TargetArray::SharedPtr msg);
     // 机械臂笛卡尔、关节坐标信息
@@ -64,7 +64,7 @@ private:
     // 识别乳头信息
     TargetGroup target_;
     // 目标像素点信息
-    std::array<PointInfo, 5> points_;
+    std::array<PointInfo, 6> points_;
     // 当前机械臂信息
     std::array<double, 4> current_tcp_;
     std::array<double, 4> current_joints_;
@@ -73,12 +73,19 @@ private:
     std_msgs::msg::UInt8MultiArray rc_ctl_;
     // 定时器
     rclcpp::TimerBase::SharedPtr timer_;
+    // 等待函数
+    bool check_wait(int seconds);
 
     // 工作阶段
-    int work_phase = 0;
+    int work_phase;
+    // 等待标志位
+    bool waiting;
+    // 时间
+    std::chrono::time_point<std::chrono::steady_clock> now, last_time;
     // 调用目标信息点
     int index = 0;
     // 继电器控制消息
-    std::array<uint8_t,10> rc_input;
+    // 1：奶杯号(1-4) 2：拉绳(1拉0松) 3：奶托(1斜0立) 4：真空泵 5：主奶管 6：异奶管 7：弃奶管 8：乳刷 9：支架 10：药浴
+    std::array<uint8_t, 10> rc_input;
 };
 #endif
