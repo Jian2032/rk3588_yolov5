@@ -214,18 +214,18 @@ void ArmControl::arm_control_loop()
     msg.joint_position_3 = pos_joint[2];
     msg.joint_position_4 = pos_joint[3];
 
-    std::cout << std::fixed << std::setprecision(3);
-    std::cout << "ArmControl msg received: "
-              << "mode=" << arm_data.mode
-              << " pos=(" << arm_data.position_x
-              << ", " << arm_data.position_y
-              << ", " << arm_data.position_z
-              << ", u=" << arm_data.position_u << ")"
-              << " dir=(" << arm_data.direction_x
-              << ", " << arm_data.direction_y
-              << ", " << arm_data.direction_z
-              << ", u=" << arm_data.direction_u << ")"
-              << std::endl;
+    // std::cout << std::fixed << std::setprecision(3);
+    // std::cout << "ArmControl msg received: "
+    //           << "mode=" << arm_data.mode
+    //           << " pos=(" << arm_data.position_x
+    //           << ", " << arm_data.position_y
+    //           << ", " << arm_data.position_z
+    //           << ", u=" << arm_data.position_u << ")"
+    //           << " dir=(" << arm_data.direction_x
+    //           << ", " << arm_data.direction_y
+    //           << ", " << arm_data.direction_z
+    //           << ", u=" << arm_data.direction_u << ")"
+    //           << std::endl;
 
     pub_arm_info_->publish(msg);
 
@@ -238,12 +238,14 @@ void ArmControl::arm_control_loop()
         new_y = (double)arm_data.position_y;
         new_z = (double)arm_data.position_z;
         new_u = arm_data.position_u;
+        set_speed(fd, 80);
         break;
     case 1:
         new_x = pos_tcp[0] + (double)arm_data.direction_x * 2;
         new_y = pos_tcp[1] + (double)arm_data.direction_y * 2;
         new_z = pos_tcp[2] + (double)arm_data.direction_z * 2;
         new_u = pos_tcp[5] + arm_data.direction_u * 0.01;
+        set_speed(fd, 20);
         break;
     default:
         RCLCPP_WARN(rclcpp::get_logger("controlArm"), "Unknown mode: %d", arm_data.mode);
@@ -251,7 +253,7 @@ void ArmControl::arm_control_loop()
     }
 
     double r = std::sqrt(new_x * new_x + new_y * new_y);
-    if (new_x >= -50.0 && new_y >= -50.0 && r <= 575.0 && new_z >= -295.0 && new_z <= -230.0)
+    if (new_x >= -50.0 && new_y >= -50.0 && r <= 580.0 && new_z >= -295.0 && new_z <= -230.0)
     {
         pos_tcp[0] = new_x;
         pos_tcp[1] = new_y;

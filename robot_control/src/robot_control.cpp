@@ -26,6 +26,8 @@ RobotControl::RobotControl() : Node("robot_control_node")
     now = std::chrono::steady_clock::now();
     last_time = std::chrono::steady_clock::now();
 
+    cnt = 1;
+
     sub_target_ = this->create_subscription<robot_msgs::msg::TargetArray>(
         "/target_info", 10,
         std::bind(&RobotControl::targetCallback, this, std::placeholders::_1));
@@ -37,7 +39,7 @@ RobotControl::RobotControl() : Node("robot_control_node")
     pub_arm_ctl_ = this->create_publisher<robot_msgs::msg::ArmControl>("arm_control", 10);
     pub_rc_ctl_ = this->create_publisher<std_msgs::msg::UInt8MultiArray>("relay_control", 10);
 
-    // 创建定时器 (10ms 周期)
+    // 创建定时器 (100ms 周期)
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(100),
         std::bind(&RobotControl::controlLoop, this));
@@ -219,15 +221,15 @@ bool RobotControl::check_wait(int seconds)
         if (std::chrono::duration_cast<std::chrono::seconds>(now - last_time).count() >= seconds)
         {
             RCLCPP_INFO(this->get_logger(), "Wait %d seconds finished, continue moving...", seconds);
-            waiting = false;   // 自动解除等待
-            return true;       // 表示等待完成
+            waiting = false; // 自动解除等待
+            return true;     // 表示等待完成
         }
         else
         {
-            return false;      // 还在等待
+            return false; // 还在等待
         }
     }
-    return true;  // 不在等待状态，直接继续
+    return true; // 不在等待状态，直接继续
 }
 
 void RobotControl::setRcCtl(const std::array<uint8_t, 10> &input, std_msgs::msg::UInt8MultiArray &rc_ctl)
@@ -260,23 +262,14 @@ void RobotControl::controlLoop()
     rc_input = {};
     // 继电器消息赋值
     rc_input = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    // work_phase = 3;
     // 测试
     if (work_phase == -1)
     {
-        // setRcCtl(rc_input,rc_ctl_);
-        // std::this_thread::sleep_for(std::chrono::seconds(3));
-        // rc_input = {1,0,1,0,0,0,0,0,0,0};
-        // setRcCtl(rc_input,rc_ctl_);
-        // std::this_thread::sleep_for(std::chrono::seconds(3));
-        // rc_input = {1,1,1,0,0,0,0,0,0,0};
-        // setRcCtl(rc_input,rc_ctl_);
-        // std::this_thread::sleep_for(std::chrono::seconds(3));
-        // rc_input = {1,1,0,0,0,0,0,1,0,0};
-        // setRcCtl(rc_input,rc_ctl_);
-        // std::this_thread::sleep_for(std::chrono::seconds(3));
-        // rc_input = {1,0,0,0,0,0,0,0,0,0};
-        // setRcCtl(rc_input,rc_ctl_);
-        // std::this_thread::sleep_for(std::chrono::seconds(30));
+        // rc_input = {4, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        // rc_input = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+        // setRcCtl(rc_input, rc_ctl_);
     }
     // 阶段1：控制机械臂到初始位置
     else if (work_phase == 0)
@@ -290,6 +283,8 @@ void RobotControl::controlLoop()
             work_phase = 1;
             index = 0;
         }
+        rc_input = {(uint8_t)cnt, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
     }
     // 阶段2：开始药浴
     else if (work_phase == 1)
@@ -314,6 +309,9 @@ void RobotControl::controlLoop()
             work_phase = 2;
             index = 0;
         }
+
+        rc_input = {(uint8_t)cnt, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
     }
     // 阶段3：开始洗刷乳头
     else if (work_phase == 2)
@@ -321,7 +319,7 @@ void RobotControl::controlLoop()
         // 阻塞5s
         if (!check_wait(5))
         {
-            return; 
+            return;
         }
 
         if (calculateMovement(points_[5], target_.targets[index]))
@@ -338,6 +336,8 @@ void RobotControl::controlLoop()
             work_phase = 3;
             index = 0;
         }
+        rc_input = {(uint8_t)cnt, 0, 1, 0, 0, 0, 0, 1, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
     }
     // 阶段4：开始套杯
     else if (work_phase == 3)
@@ -345,21 +345,35 @@ void RobotControl::controlLoop()
         // 非阻塞等待 5 秒
         if (!check_wait(5))
         {
-            return; 
+            return;
         }
 
         if (calculateMovement(points_[index], target_.targets[index]))
         {
             index++;
-            if (index >= 3)
-                index = 3;
+            if (index > 3)
+                index = 4;
 
             last_time = std::chrono::steady_clock::now();
             waiting = true; // 下一次循环进入等待状态
             RCLCPP_INFO(this->get_logger(), "Reached point %d, waiting 5 seconds...", index);
         }
+
+        if (waiting == true)
+        {
+            rc_input = {(uint8_t)(index), 1, 0, 0, 0, 0, 0, 0, 0, 0};
+            setRcCtl(rc_input, rc_ctl_);
+        }
+        else
+        {
+            rc_input = {(uint8_t)(index + 1), 0, 1, 0, 0, 0, 0, 0, 0, 0};
+            setRcCtl(rc_input, rc_ctl_);
+        }
     }
 
-    setRcCtl(rc_input, rc_ctl_);
-    RCLCPP_INFO(this->get_logger(), "work_phase = %d", work_phase);
+    // 继电器周期
+    cnt++;
+    if (cnt > 4)
+        cnt = 1;
+    RCLCPP_INFO(this->get_logger(), "work_phase = %d cnt = %d", work_phase, cnt);
 }
