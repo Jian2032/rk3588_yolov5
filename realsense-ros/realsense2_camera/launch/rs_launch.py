@@ -18,7 +18,7 @@ configurable_parameters = [
     {'name': 'camera_name', 'default': 'camera', 'description': '相机唯一名称'},
     {'name': 'camera_namespace', 'default': 'camera', 'description': '相机命名空间'},
     {'name': 'serial_no', 'default': "''", 'description': '根据序列号选择设备'},
-    {'name': 'usb_port_id', 'default': "''", 'description': '根据USB端口选择设备'},
+    {'name': 'usb_port_id', 'default': "'8086:0b3a'", 'description': '根据USB端口选择设备'},
     {'name': 'device_type', 'default': "''", 'description': '选择设备类型'},
     {'name': 'config_file', 'default': "''", 'description': 'yaml配置文件路径'},
     {'name': 'json_file_path', 'default': "''", 'description': '高级配置文件路径'},
