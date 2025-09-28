@@ -88,6 +88,7 @@ private:
 
     // ------------------ 状态变量 ------------------
     int work_phase;                                                    // 当前工作阶段（流程控制用，例如：定位、吸附、清洗等）
+    int step;                                                         // 工作阶段中的步骤
     bool waiting;                                                      // 是否处于等待状态
     std::chrono::time_point<std::chrono::steady_clock> now, last_time; // 时间记录（用于等待控制）
 

@@ -15,12 +15,13 @@ RobotControl::RobotControl() : Node("robot_control_node")
     // 初始化点位控制目标 TCP 列表 {x, y, z, u}
     target_tcp_list_[0] = {450.0, -25.0, -280.0, 2.26};
     target_tcp_list_[1] = {230.0, 425.0, -280.0, 1.61};
-    target_tcp_list_[2] = {365.0, 215.0, -290.0, 3.14};
-    target_tcp_list_[3] = {365.0, 215.0, -290.0, 3.14};
+    target_tcp_list_[2] = {0, 0, 0, 0};
+    target_tcp_list_[3] = {0, 0, 0, 0};
     // 初始化继电器控制信息长度为 3，并置 0
     rc_ctl_.data.resize(3, 0);
     // 初始化工作阶段
     work_phase = 0;
+    step = 0;
     // 初始化等待标志位
     waiting = false;
     // 初始化时间点，用于等待判断
@@ -239,7 +240,6 @@ bool RobotControl::check_wait(int seconds)
     return true; // 不在等待状态，直接继续
 }
 
-
 // 设置继电器控制消息
 void RobotControl::setRcCtl(const std::array<uint8_t, 10> &input, std_msgs::msg::UInt8MultiArray &rc_ctl)
 {
@@ -276,11 +276,51 @@ void RobotControl::controlLoop()
     rc_input = {(uint8_t)cnt, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // 默认继电器状态
 
     // 测试模式（work_phase == -1）
+    work_phase = -1;
     if (work_phase == -1)
     {
+        rc_input = {1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
+        std::cout << "拉" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+
+        rc_input = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
+        std::cout << "松" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+
+        rc_input = {2, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
+        std::cout << "拉" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+
+        rc_input = {2, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
+        std::cout << "松" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+
+        rc_input = {3, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
+        std::cout << "拉" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+
+        rc_input = {3, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
+        std::cout << "松" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+
+        rc_input = {4, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
+        std::cout << "拉" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+
+        rc_input = {4, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        setRcCtl(rc_input, rc_ctl_);
+        std::cout << "松" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(3));
         // 可以手动设置 rc_input 测试继电器
     }
-    // 阶段1：机械臂到初始位置
+    // 阶段1：机械臂到初始工作位置
     else if (work_phase == 0)
     {
         if (calculatePointMovement(current_tcp_, target_tcp_list_[index]))
@@ -292,8 +332,8 @@ void RobotControl::controlLoop()
             work_phase = 1;
             index = 0;
         }
-        rc_input = {(uint8_t)cnt, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        setRcCtl(rc_input, rc_ctl_);
+        // 拉绳+奶托倾斜
+        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 0, 0, 0};
     }
     // 阶段2：药浴
     else if (work_phase == 1)
@@ -316,19 +356,140 @@ void RobotControl::controlLoop()
             work_phase = 2;
             index = 0;
         }
-
-        rc_input = {(uint8_t)cnt, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        setRcCtl(rc_input, rc_ctl_);
+        // 拉绳+奶托倾斜
+        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 0, 0, 0};
     }
-    // 阶段3：洗刷乳头
+    // 阶段3：滚刷乳头
     else if (work_phase == 2)
     {
-        if (!check_wait(5)) // 阻塞等待 5 秒
+        // 移动到乳头下方
+        if (step == 0)
+        {
+            if (calculateMovement(points_[5], target_.targets[index]))
+            {
+                step++;
+            }
+        }
+        // step 1~4上下滚刷乳头
+        if (step == 1)
+        {
+            target_tcp_list_[2][0] = current_tcp_[0];
+            target_tcp_list_[2][1] = current_tcp_[1];
+            target_tcp_list_[2][2] = current_tcp_[2] + 50;
+            target_tcp_list_[2][3] = current_tcp_[3];
+
+            step++;
+        }
+
+        if (step == 2)
+        {
+            if (calculatePointMovement(current_tcp_, target_tcp_list_[2]))
+            {
+                step++;
+            }
+        }
+
+        if (step == 3)
+        {
+            target_tcp_list_[2][2] -= 50;
+            step++;
+        }
+
+        if (step == 4)
+        {
+            if (calculatePointMovement(current_tcp_, target_tcp_list_[2]))
+            {
+                index++;
+                step = 0;
+            }
+        }
+
+        if (index == 4)
+        {
+            work_phase = 3;
+            index = 0;
+            step = 0;
+        }
+        // 拉绳+奶托倾斜
+        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 1, 0, 0};
+    }
+    // 阶段4：套杯
+    else if (work_phase == 3)
+    {
+        // 移动到乳头下方
+        if (step == 0)
+        {
+            if (calculateMovement(points_[index], target_.targets[index]))
+            {
+                step++;
+                // 拉绳+奶托直立
+                rc_input = {(uint8_t)(index + 1), 1, 0, 0, 0, 0, 0, 0, 0, 0};
+            }
+        }
+        // step 1~2向上套杯
+        if (step == 1)
+        {
+            target_tcp_list_[2][0] = current_tcp_[0];
+            target_tcp_list_[2][1] = current_tcp_[1];
+            target_tcp_list_[2][2] = current_tcp_[2] + 30;
+            target_tcp_list_[2][3] = current_tcp_[3];
+
+            step++;
+        }
+
+        if (step == 2)
+        {
+            if (calculatePointMovement(current_tcp_, target_tcp_list_[2]))
+            {
+                // 松绳+奶托直立
+                rc_input = {(uint8_t)(index + 1), 0, 0, 0, 0, 0, 0, 0, 0, 0};
+                step++;
+            }
+        }
+        // step 3~4下降开始向下一个乳头移动
+        if (step == 3)
+        {
+            target_tcp_list_[2][2] -= 50;
+            step++;
+        }
+
+        if (step == 4)
+        {
+            if (calculatePointMovement(current_tcp_, target_tcp_list_[2]))
+            {
+                index++;
+                step = 0;
+            }
+        }
+
+        if (index == 4)
+        {
+            work_phase = 4;
+            index = 0;
+            step = 0;
+        }
+    }
+    // 阶段5：收杯
+    else if (work_phase == 4)
+    {
+        static int a = 0;
+        // 拉绳+奶托直立
+        rc_input = {(uint8_t)cnt, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        a++;
+        if (a > 100)
+        {
+            work_phase = 5;
+        }
+    }
+    // 阶段6：后药浴
+    else if (work_phase == 4)
+    {
+        if (!check_wait(2)) // 阻塞等待 2 秒
         {
             return;
         }
 
-        if (calculateMovement(points_[5], target_.targets[index]))
+        if (calculateMovement(points_[4], target_.targets[index]))
         {
             index++;
             last_time = std::chrono::steady_clock::now();
@@ -338,48 +499,27 @@ void RobotControl::controlLoop()
 
         if (index == 4)
         {
-            work_phase = 3;
+            work_phase = 6;
             index = 0;
         }
-
-        rc_input = {(uint8_t)cnt, 0, 1, 0, 0, 0, 0, 1, 0, 0};
-        setRcCtl(rc_input, rc_ctl_);
+        // 拉绳+奶托倾斜
+        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 0, 0, 0};
     }
-    // 阶段4：套杯
-    else if (work_phase == 3)
+    // 阶段7：收回机械臂
+    else if (work_phase == 6)
     {
-        if (!check_wait(5)) // 非阻塞等待 5 秒
+        if (calculatePointMovement(current_tcp_, target_tcp_list_[0]))
         {
-            return;
-        }
-
-        if (calculateMovement(points_[index], target_.targets[index]))
-        {
-            index++;
-            if (index > 3)
-                index = 4;
-
-            last_time = std::chrono::steady_clock::now();
-            waiting = true; // 下一循环进入等待状态
-            RCLCPP_INFO(this->get_logger(), "Reached point %d, waiting 5 seconds...", index);
-        }
-
-        if (waiting == true)
-        {
-            rc_input = {(uint8_t)(index), 1, 0, 0, 0, 0, 0, 0, 0, 0};
-            setRcCtl(rc_input, rc_ctl_);
-        }
-        else
-        {
-            rc_input = {(uint8_t)(index + 1), 0, 1, 0, 0, 0, 0, 0, 0, 0};
-            setRcCtl(rc_input, rc_ctl_);
+            RCLCPP_INFO(this->get_logger(), "到达初始位置");
         }
     }
+    // 控制继电器
+    setRcCtl(rc_input, rc_ctl_);
 
     // 继电器周期计数
     cnt++;
     if (cnt > 4)
         cnt = 1;
 
-    RCLCPP_INFO(this->get_logger(), "work_phase = %d cnt = %d", work_phase, cnt); // 打印当前阶段与计数
+    RCLCPP_INFO(this->get_logger(), "work_phase = %d step = %d cnt = %d", work_phase, step, cnt); // 打印当前阶段与计数
 }
