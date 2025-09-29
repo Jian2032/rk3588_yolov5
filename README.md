@@ -66,7 +66,7 @@ ros2 launch realsense2_camera rs_launch.py depth_module.depth_profile:=1280x720x
 
 ### D435i固件版本问题
 
-rk3588 ubuntu22 ros2-humble 要使用5.15.0.2版本(测试可用，并不是每一个版本都可以用5.16.0.1就不能使用)
+rk3588 ubuntu24 ros2-humble 要使用5.15.0.2版本(测试可用，并不是每一个版本都可以用5.16.0.1就不能使用)
 
 固件下载地址 [RealSens SDK](https://github.com/intelrealsense/librealsense/releases?utm_source=chatgpt.com)
 

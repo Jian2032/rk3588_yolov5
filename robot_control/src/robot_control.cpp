@@ -4,21 +4,21 @@
 RobotControl::RobotControl() : Node("robot_control_node")
 {
     // 初始化四个乳头目标位置，PointInfo {index, u, v, distance}
-    points_.at(0) = {1, 750, 395, 370};
-    points_.at(1) = {2, 640, 370, 360};
-    points_.at(2) = {3, 955, 315, 305};
-    points_.at(3) = {4, 565, 315, 315};
+    points_.at(0) = {1, 740, 315, 390};
+    points_.at(1) = {2, 600, 320, 385};
+    points_.at(2) = {3, 955, 250, 305};
+    points_.at(3) = {4, 510, 240, 300};
     // 初始化药浴目标位置
-    points_.at(4) = {5, 710, 390, 370};
+    points_.at(4) = {5, 685, 340, 380};
     // 初始化滚刷目标位置
-    points_.at(5) = {6, 700, 450, 480};
+    points_.at(5) = {6, 685, 340, 380};
     // 初始化点位控制目标 TCP 列表 {x, y, z, u}
     target_tcp_list_[0] = {450.0, -25.0, -280.0, 2.26};
-    target_tcp_list_[1] = {230.0, 425.0, -280.0, 1.61};
+    target_tcp_list_[1] = {290.0, 390.0, -280.0, 1.90};
     target_tcp_list_[2] = {0, 0, 0, 0};
     target_tcp_list_[3] = {0, 0, 0, 0};
-    // 初始化继电器控制信息长度为 3，并置 0
-    rc_ctl_.data.resize(3, 0);
+    // 初始化继电器控制信息长度为 4，并置 0
+    rc_ctl_.data.resize(4, 0);
     // 初始化工作阶段
     work_phase = 0;
     step = 0;
@@ -86,20 +86,20 @@ void RobotControl::targetCallback(const robot_msgs::msg::TargetArray::SharedPtr 
 void RobotControl::arminfoCallback(const robot_msgs::msg::ArmInfo::SharedPtr msg)
 {
     // 打印 TCP 位姿信息
-    RCLCPP_INFO(this->get_logger(),
-                "TCP Position -> x: %.3f, y: %.3f, z: %.3f, u: %.3f",
-                msg->tcp_position_x,
-                msg->tcp_position_y,
-                msg->tcp_position_z,
-                msg->tcp_position_u);
+    // RCLCPP_INFO(this->get_logger(),
+    //             "TCP Position -> x: %.3f, y: %.3f, z: %.3f, u: %.3f",
+    //             msg->tcp_position_x,
+    //             msg->tcp_position_y,
+    //             msg->tcp_position_z,
+    //             msg->tcp_position_u);
 
     // 打印关节位置信息
-    RCLCPP_INFO(this->get_logger(),
-                "Joint Position -> j1: %.3f, j2: %.3f, j3: %.3f, j4: %.3f",
-                msg->joint_position_1,
-                msg->joint_position_2,
-                msg->joint_position_3,
-                msg->joint_position_4);
+    // RCLCPP_INFO(this->get_logger(),
+    //             "Joint Position -> j1: %.3f, j2: %.3f, j3: %.3f, j4: %.3f",
+    //             msg->joint_position_1,
+    //             msg->joint_position_2,
+    //             msg->joint_position_3,
+    //             msg->joint_position_4);
 
     // 保存 TCP 坐标
     current_tcp_[0] = msg->tcp_position_x;
@@ -241,7 +241,7 @@ bool RobotControl::check_wait(int seconds)
 }
 
 // 设置继电器控制消息
-void RobotControl::setRcCtl(const std::array<uint8_t, 10> &input, std_msgs::msg::UInt8MultiArray &rc_ctl)
+void RobotControl::setRcCtl(const std::array<uint8_t, 14> &input, std_msgs::msg::UInt8MultiArray &rc_ctl)
 {
     // 检查第一个元素是否合法
     if (input[0] < 1 || input[0] > 4)
@@ -263,6 +263,12 @@ void RobotControl::setRcCtl(const std::array<uint8_t, 10> &input, std_msgs::msg:
                      (input[8] & 1) << 1 |
                      (input[9] & 1) << 2;
 
+    // 设置第 3 个字节：脉动器（每个脉动器 2bit 表示档位 0~3）
+    rc_ctl.data[3] = ((input[10] & 0x03) << 0) | // 脉动器1
+                     ((input[11] & 0x03) << 2) | // 脉动器2
+                     ((input[12] & 0x03) << 4) | // 脉动器3
+                     ((input[13] & 0x03) << 6);  // 脉动器4
+
     // 发布继电器控制消息
     pub_rc_ctl_->publish(rc_ctl);
 }
@@ -276,48 +282,29 @@ void RobotControl::controlLoop()
     rc_input = {(uint8_t)cnt, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // 默认继电器状态
 
     // 测试模式（work_phase == -1）
-    work_phase = -1;
+    // work_phase = -1;
     if (work_phase == -1)
     {
-        rc_input = {1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        rc_input = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         setRcCtl(rc_input, rc_ctl_);
-        std::cout << "拉" << std::endl;
+        std::cout << "0" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(3));
 
-        rc_input = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        rc_input = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1};
         setRcCtl(rc_input, rc_ctl_);
-        std::cout << "松" << std::endl;
+        std::cout << "1" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(3));
 
-        rc_input = {2, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        rc_input = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2};
         setRcCtl(rc_input, rc_ctl_);
-        std::cout << "拉" << std::endl;
+        std::cout << "2" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(3));
 
-        rc_input = {2, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        rc_input = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3};
         setRcCtl(rc_input, rc_ctl_);
-        std::cout << "松" << std::endl;
+        std::cout << "3" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(3));
 
-        rc_input = {3, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-        setRcCtl(rc_input, rc_ctl_);
-        std::cout << "拉" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-
-        rc_input = {3, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        setRcCtl(rc_input, rc_ctl_);
-        std::cout << "松" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-
-        rc_input = {4, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-        setRcCtl(rc_input, rc_ctl_);
-        std::cout << "拉" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-
-        rc_input = {4, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        setRcCtl(rc_input, rc_ctl_);
-        std::cout << "松" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(3));
         // 可以手动设置 rc_input 测试继电器
     }
     // 阶段1：机械臂到初始工作位置
@@ -333,7 +320,7 @@ void RobotControl::controlLoop()
             index = 0;
         }
         // 拉绳+奶托倾斜
-        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     }
     // 阶段2：药浴
     else if (work_phase == 1)
@@ -357,7 +344,7 @@ void RobotControl::controlLoop()
             index = 0;
         }
         // 拉绳+奶托倾斜
-        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     }
     // 阶段3：滚刷乳头
     else if (work_phase == 2)
@@ -411,7 +398,7 @@ void RobotControl::controlLoop()
             step = 0;
         }
         // 拉绳+奶托倾斜
-        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 1, 0, 0};
+        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0};
     }
     // 阶段4：套杯
     else if (work_phase == 3)
@@ -423,7 +410,7 @@ void RobotControl::controlLoop()
             {
                 step++;
                 // 拉绳+奶托直立
-                rc_input = {(uint8_t)(index + 1), 1, 0, 0, 0, 0, 0, 0, 0, 0};
+                rc_input = {(uint8_t)(index + 1), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
             }
         }
         // step 1~2向上套杯
@@ -431,7 +418,7 @@ void RobotControl::controlLoop()
         {
             target_tcp_list_[2][0] = current_tcp_[0];
             target_tcp_list_[2][1] = current_tcp_[1];
-            target_tcp_list_[2][2] = current_tcp_[2] + 30;
+            target_tcp_list_[2][2] = current_tcp_[2] + 50;
             target_tcp_list_[2][3] = current_tcp_[3];
 
             step++;
@@ -442,7 +429,7 @@ void RobotControl::controlLoop()
             if (calculatePointMovement(current_tcp_, target_tcp_list_[2]))
             {
                 // 松绳+奶托直立
-                rc_input = {(uint8_t)(index + 1), 0, 0, 0, 0, 0, 0, 0, 0, 0};
+                rc_input = {(uint8_t)(index + 1), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
                 step++;
             }
         }
@@ -474,7 +461,7 @@ void RobotControl::controlLoop()
     {
         static int a = 0;
         // 拉绳+奶托直立
-        rc_input = {(uint8_t)cnt, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        rc_input = {(uint8_t)cnt, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         a++;
         if (a > 100)
         {
@@ -482,7 +469,7 @@ void RobotControl::controlLoop()
         }
     }
     // 阶段6：后药浴
-    else if (work_phase == 4)
+    else if (work_phase == 5)
     {
         if (!check_wait(2)) // 阻塞等待 2 秒
         {
@@ -503,7 +490,7 @@ void RobotControl::controlLoop()
             index = 0;
         }
         // 拉绳+奶托倾斜
-        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        rc_input = {(uint8_t)cnt, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     }
     // 阶段7：收回机械臂
     else if (work_phase == 6)

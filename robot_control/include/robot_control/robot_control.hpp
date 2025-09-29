@@ -54,9 +54,9 @@ private:
                                 const std::array<double, 4> target_tcp_);
 
     // 控制继电器（生成继电器控制消息）
-    // input：控制输入数组（10 个通道）
+    // input：控制输入数组（14 个通道）
     // rc_ctl：输出的 ROS2 消息（UInt8MultiArray）
-    void setRcCtl(const std::array<uint8_t, 10> &input,
+    void setRcCtl(const std::array<uint8_t, 14> &input,
                   std_msgs::msg::UInt8MultiArray &rc_ctl);
 
     // 视觉识别乳头位置回调（订阅 topic：TargetArray）
@@ -105,7 +105,8 @@ private:
     // 7：乳刷
     // 8：支架
     // 9：药浴
-    std::array<uint8_t, 10> rc_input;
+    // 10~13:四个脉动器
+    std::array<uint8_t, 14> rc_input;
 
     int cnt; // 循环计数器（用于继电器周期控制）
 };

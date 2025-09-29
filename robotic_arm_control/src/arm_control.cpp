@@ -37,7 +37,7 @@ ArmControl::ArmControl()
     // 设置示教模式（模式0：示教）
     set_current_mode(fd, 0);
     // 设置全局速度
-    set_speed(fd, 20);
+    set_speed(fd, 50);
     // 上电（伺服电机使能）
     power_on(fd);
 
@@ -52,7 +52,7 @@ ArmControl::ArmControl()
 
     // 创建定时器，100ms 执行一次 arm_control_loop()
     timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(100),
+        std::chrono::milliseconds(50),
         std::bind(&ArmControl::arm_control_loop, this));
 }
 
@@ -270,7 +270,7 @@ void ArmControl::arm_control_loop()
     // 越界保护（避免机械臂运动到危险区域）
     double r = std::sqrt(new_x * new_x + new_y * new_y);
     if (new_x >= -50.0 && new_y >= -50.0 && r <= 580.0 &&
-        new_z >= -295.0 && new_z <= -230.0)
+        new_z >= -295.0 && new_z <= -100.0)
     {
         pos_tcp[0] = new_x;
         pos_tcp[1] = new_y;

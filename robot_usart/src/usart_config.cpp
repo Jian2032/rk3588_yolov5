@@ -69,7 +69,7 @@ void usartConfig::controlCmdSendCallback()
   usartTxBuffer[2] = forwardSignalData[0];
   usartTxBuffer[3] = forwardSignalData[1];
   usartTxBuffer[4] = forwardSignalData[2];
-  usartTxBuffer[5] = 0;
+  usartTxBuffer[5] = forwardSignalData[3];
   usartTxBuffer[6] = 0;
   usartTxBuffer[7] = 0;
 
@@ -329,7 +329,7 @@ void usartConfig::Usart_Config()
   statusPub = this->create_publisher<std_msgs::msg::Int32>("hongwai", 10);
 
   // ----------------- 定时器 -----------------
-  cmdTimer = this->create_wall_timer(5ms, std::bind(&usartConfig::controlCmdSendCallback, this));
+  cmdTimer = this->create_wall_timer(20ms, std::bind(&usartConfig::controlCmdSendCallback, this));
   sensorTimer = this->create_wall_timer(5ms, std::bind(&usartConfig::PubSensor_DataSendCallback, this));
 
   // ----------------- 启动线程 -----------------
